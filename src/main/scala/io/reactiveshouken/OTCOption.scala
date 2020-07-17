@@ -2,6 +2,8 @@ package io.reactiveshouken
 
 object OTCOption {
 
+  class ContractId(val value: String)
+  class Instrument(val value: String)
   class Quantity(val value: Int)
 
   sealed abstract class PutCall
@@ -13,13 +15,13 @@ object OTCOption {
   case object Sell extends BuySell
 
   def apply(
-      contractId: String,
-      instrument: String,
+      contractId: ContractId,
+      instrument: Instrument,
       quantity: Quantity,
       putCall: PutCall,
       buySell: BuySell
   ): Unit = {
-    require(contractId.nonEmpty, "contractId is required.")
+    require(contractId.value.nonEmpty, "contractId is required.")
     require(quantity.value > 0, "quantity must be greater than 0")
   }
 
