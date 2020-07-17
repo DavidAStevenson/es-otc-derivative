@@ -1,0 +1,6 @@
+*.class
+
+*.swp
+
+# sbt
+target/
