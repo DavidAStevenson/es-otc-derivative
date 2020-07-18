@@ -21,6 +21,26 @@ class OTCOptionSpec extends ScalaTestWithActorTestKit() with AnyWordSpecLike {
       }
     }
 
-  }
+    "decrease outstanding quantity when partially exercised" in {
+      val initialQuantity = 10000
+      val exerciseQuantity = 2500
 
+      val contract = testKit.spawn(
+        OTCOption(
+          new ContractId("123456789"),
+          new Instrument("TOYOTA"),
+          new Quantity(initialQuantity),
+          Put,
+          Sell
+        )
+      )
+      contract ! OTCOption.PartialExercise(new Quantity(exerciseQuantity))
+
+      val probe = testKit.createTestProbe[OTCOption.StateMsg]
+      contract ! OTCOption.GetState(probe.ref)
+      val result = probe.expectMessageType[OTCOption.StateMsg]
+      result.effectiveQuantity.value shouldBe (initialQuantity - exerciseQuantity)
+    }
+
+  }
 }
