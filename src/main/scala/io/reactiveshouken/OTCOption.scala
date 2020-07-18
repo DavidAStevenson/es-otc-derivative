@@ -8,6 +8,8 @@ object OTCOption {
 
   /* Protocol */
   sealed trait Command
+  case class EnterContract(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
+      extends Command
   case class PartialExercise(q: Quantity) extends Command
   case class GetState(replyTo: ActorRef[StateMsg]) extends Command
 
@@ -26,40 +28,40 @@ object OTCOption {
   case object Buy extends BuySell
   case object Sell extends BuySell
 
-  def apply(
-      contractId: ContractId,
-      instrument: Instrument,
-      quantity: Quantity,
-      putCall: PutCall,
-      buySell: BuySell
-  ): Behavior[Command] = {
+  case class OptionState(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
+
+  def apply(contractId: ContractId): Behavior[Command] = {
     require(contractId.value.nonEmpty, "contractId is required.")
-    require(quantity.value > 0, "quantity must be greater than 0")
-    new OTCOption(contractId, instrument, quantity, putCall, buySell).effective()
+    new OTCOption(contractId).inactive()
   }
 
 }
 
 import OTCOption._
 
-class OTCOption(
-    aContractId: ContractId,
-    anInstrument: Instrument,
-    aQuantity: Quantity,
-    aPutCall: PutCall,
-    aBuySell: BuySell
-) {
+class OTCOption(aContractId: ContractId) {
 
-  private var quantity: Quantity = aQuantity
+  private def inactive(): Behavior[Command] =
+    Behaviors.receiveMessage {
+      case terms: EnterContract =>
+        require(terms.qty.value > 0, "quantity must be greater than 0")
+        effective(OptionState(terms.inst, terms.qty, terms.putCall, terms.buySell))
+      case _ =>
+        Behaviors.same
+    }
 
-  private def effective(): Behavior[Command] =
+  private def effective(terms: OptionState): Behavior[Command] =
     Behaviors.receiveMessage {
       case PartialExercise(exerciseQty) =>
         // TODO - can the option be exercised? Assuming yes, for now
-        quantity = new Quantity(quantity.value - exerciseQty.value)
+        //quantity = new Quantity(quantity.value - exerciseQty.value)
+        effective(terms.copy(qty = new Quantity(terms.qty.value - exerciseQty.value)))
         Behaviors.same
       case GetState(replyTo: ActorRef[StateMsg]) =>
-        replyTo ! StateMsg(quantity)
+        replyTo ! StateMsg(terms.qty)
+        Behaviors.same
+      case terms: EnterContract =>
+        // this is not handled, contract already entered
         Behaviors.same
     }
 
