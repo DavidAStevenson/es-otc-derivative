@@ -2,7 +2,6 @@ package io.reactiveshouken
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.Effect
 import akka.persistence.typed.scaladsl.EventSourcedBehavior
@@ -32,6 +31,7 @@ object OTCOption {
       putCall: PutCall,
       buySell: BuySell
   ) extends Event
+  final case class PartiallyExercised(contractId: ContractId, quantity: Quantity) extends Event
 
   /* State */
 
@@ -49,8 +49,21 @@ object OTCOption {
 
   case class OTCOptionState(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
   final case class State(otcOption: Option[OTCOptionState]) {
+
     def enterContract(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell): State =
       copy(otcOption = Some(OTCOptionState(inst, qty, putCall, buySell)))
+
+    def partiallyExercise(exerciseQty: Quantity): State = {
+      otcOption match {
+        case None =>
+          // no option state should validated for before even getting here...
+          State(None)
+        case Some(oldState) =>
+          val newState: OTCOptionState =
+            oldState.copy(qty = new Quantity(oldState.qty.value - exerciseQty.value))
+          State(Some(newState))
+      }
+    }
   }
   object State {
     val empty = State(None)
@@ -61,15 +74,22 @@ object OTCOption {
       case GetState(replyTo: ActorRef[StateMsg]) =>
         state.otcOption match {
           case Some(otcOption) => replyTo ! StateMsg(otcOption.qty)
-          case None =>
+          case None            => // TODO anything?
         }
         Effect.none
       case EnterContract(inst, qty, putCall, buySell) =>
         // TODO - don't require it, ignore invalid quantity commands
         require(qty.value > 0, "quantity must be greater than 0")
-        Effect.persist(ContractEntered(contractId, inst, qty, putCall, buySell))
+        Effect
+          .persist(ContractEntered(contractId, inst, qty, putCall, buySell))
           .thenRun(_ => println("persisted a ContractEntered event"))
-
+      case PartialExercise(exerciseQty) =>
+        // TODO validate... qty should be neither 0 nor current qty, to be "partial"
+        // TODO - can the option be exercised? Assuming yes, for now
+        // TODO - don't exercise if the exerciseQty is zero
+        Effect
+          .persist(PartiallyExercised(contractId, exerciseQty))
+          .thenRun(_ => println(s"persisted a PartiallyExercised($exerciseQty) event"))
     }
 
   def handleEvent(state: State, event: Event): State =
@@ -88,18 +108,4 @@ object OTCOption {
     )
 
   }
-
-  private def effective(terms: OTCOptionState): Behavior[Command] =
-    Behaviors.receiveMessage {
-      case PartialExercise(exerciseQty) =>
-        // TODO - can the option be exercised? Assuming yes, for now
-        // TODO - don't exercise if the exerciseQty is zero
-        effective(terms.copy(qty = new Quantity(terms.qty.value - exerciseQty.value)))
-      case GetState(replyTo: ActorRef[StateMsg]) =>
-        replyTo ! StateMsg(terms.qty)
-        Behaviors.same
-      case terms: EnterContract =>
-        // this is not handled, contract already entered
-        Behaviors.same
-    }
 }
