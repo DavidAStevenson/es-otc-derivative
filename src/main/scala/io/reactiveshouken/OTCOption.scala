@@ -3,12 +3,15 @@ package io.reactiveshouken
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
+import akka.persistence.typed.PersistenceId
+import akka.persistence.typed.scaladsl.Effect
+import akka.persistence.typed.scaladsl.EventSourcedBehavior
 
 object OTCOption {
 
   /* Protocol */
   sealed trait Command
-  case class EnterContract(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
+  final case class EnterContract(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
       extends Command
   case class PartialExercise(q: Quantity) extends Command
   case class GetState(replyTo: ActorRef[StateMsg]) extends Command
@@ -16,9 +19,14 @@ object OTCOption {
   sealed trait Response
   case class StateMsg(effectiveQuantity: Quantity) extends Response
 
+  /* Events */
+  sealed trait Event
+
   class ContractId(val value: String)
   class Instrument(val value: String)
   class Quantity(val value: Int)
+
+  /* State */
 
   sealed abstract class PutCall
   case object Put extends PutCall
@@ -29,10 +37,25 @@ object OTCOption {
   case object Sell extends BuySell
 
   case class OptionState(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
+  final case class State()
+  object State {
+    val empty = State()
+  }
+
+  def handleCommand(state: State, command: Command): Effect[Event, State] = ???
 
   def apply(contractId: ContractId): Behavior[Command] = {
     require(contractId.value.nonEmpty, "contractId is required.")
-    inactive()
+    EventSourcedBehavior[Command, Event, State](
+      PersistenceId("OTCOption", contractId.value),
+      State.empty,
+      (state, command) => {
+        inactive()
+        Effect.none
+      },
+      (state, event) => state
+    )
+
   }
 
   private def inactive(): Behavior[Command] =
