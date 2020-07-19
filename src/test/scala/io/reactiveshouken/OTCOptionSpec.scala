@@ -3,9 +3,11 @@ package io.reactiveshouken
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class OTCOptionSpec extends ScalaTestWithActorTestKit(s"""
+class OTCOptionSpec
+    extends ScalaTestWithActorTestKit(s"""
   akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
-  """) with AnyWordSpecLike {
+  """)
+    with AnyWordSpecLike {
 
   import OTCOption._
 
