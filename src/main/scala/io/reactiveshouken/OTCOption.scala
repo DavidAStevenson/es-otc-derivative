@@ -89,7 +89,7 @@ object OTCOption {
         // TODO - don't exercise if the exerciseQty is zero
         Effect
           .persist(PartiallyExercised(contractId, exerciseQty))
-          .thenRun(_ => println(s"persisted a PartiallyExercised($exerciseQty) event"))
+          .thenRun(_ => println(s"persisted a PartiallyExercised(${exerciseQty.value}) event"))
     }
 
   def handleEvent(state: State, event: Event): State =
