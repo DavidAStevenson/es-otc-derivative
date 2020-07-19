@@ -15,16 +15,6 @@ class OTCOptionSpec extends ScalaTestWithActorTestKit() with AnyWordSpecLike {
       }
     }
 
-    /*
-    "throw an IllegalArgumentException when 'Quantity' is zero" in {
-      intercept[IllegalArgumentException] {
-        val contract = testKit.spawn(OTCOption(new ContractId("abcdefgh")))
-        val initialQuantity = 0
-        contract ! OTCOption.EnterContract(new Instrument("TOYOTA"), new Quantity(initialQuantity), Put, Sell)
-      }
-    }
-     */
-
     "come into effect when supplied contract particulars" in {
       val contract = testKit.spawn(OTCOption(new ContractId("abcdfe12")))
       val initialQuantity = 10000
