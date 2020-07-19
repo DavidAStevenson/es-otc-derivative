@@ -96,6 +96,8 @@ object OTCOption {
     event match {
       case ContractEntered(_, inst, qty, putCall, buySell) =>
         state.enterContract(inst, qty, putCall, buySell)
+      case PartiallyExercised(_, exerciseQty) =>
+        state.partiallyExercise(exerciseQty)
     }
 
   def apply(contractId: ContractId): Behavior[Command] = {
