@@ -32,14 +32,8 @@ object OTCOption {
 
   def apply(contractId: ContractId): Behavior[Command] = {
     require(contractId.value.nonEmpty, "contractId is required.")
-    new OTCOption(contractId).inactive()
+    inactive()
   }
-
-}
-
-import OTCOption._
-
-class OTCOption(aContractId: ContractId) {
 
   private def inactive(): Behavior[Command] =
     Behaviors.receiveMessage {
@@ -64,5 +58,4 @@ class OTCOption(aContractId: ContractId) {
         // this is not handled, contract already entered
         Behaviors.same
     }
-
 }
