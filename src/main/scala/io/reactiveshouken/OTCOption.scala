@@ -44,6 +44,7 @@ class OTCOption(aContractId: ContractId) {
   private def inactive(): Behavior[Command] =
     Behaviors.receiveMessage {
       case terms: EnterContract =>
+        // TODO - don't require it, ignore invalid quantity commands
         require(terms.qty.value > 0, "quantity must be greater than 0")
         effective(OptionState(terms.inst, terms.qty, terms.putCall, terms.buySell))
       case _ =>
