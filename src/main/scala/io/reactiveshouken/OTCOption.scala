@@ -59,13 +59,15 @@ object OTCOption {
         Effect.persist(ContractEntered(contractId, inst, qty, putCall, buySell))
     }
 
+  def handleEvent(state: State, event: Event): State = ???
+
   def apply(contractId: ContractId): Behavior[Command] = {
     require(contractId.value.nonEmpty, "contractId is required.")
     EventSourcedBehavior[Command, Event, State](
       PersistenceId("OTCOption", contractId.value),
       State.empty,
       (state, command) => handleCommand(contractId, state, command), //  inactive()
-      (state, event) => state
+      (state, event) => handleEvent(state, event)
     )
 
   }
