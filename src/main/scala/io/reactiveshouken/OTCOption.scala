@@ -58,10 +58,18 @@ object OTCOption {
 
   def handleCommand(contractId: ContractId, state: State, command: Command): Effect[Event, State] =
     command match {
+      case GetState(replyTo: ActorRef[StateMsg]) =>
+        state.otcOption match {
+          case Some(otcOption) => replyTo ! StateMsg(otcOption.qty)
+          case None =>
+        }
+        Effect.none
       case EnterContract(inst, qty, putCall, buySell) =>
         // TODO - don't require it, ignore invalid quantity commands
         require(qty.value > 0, "quantity must be greater than 0")
         Effect.persist(ContractEntered(contractId, inst, qty, putCall, buySell))
+          .thenRun(_ => println("persisted a ContractEntered event"))
+
     }
 
   def handleEvent(state: State, event: Event): State =
