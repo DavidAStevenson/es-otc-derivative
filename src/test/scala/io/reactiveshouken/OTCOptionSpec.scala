@@ -51,35 +51,34 @@ class OTCOptionSpec extends ScalaTestWithActorTestKit() with AnyWordSpecLike {
       result.effectiveQuantity.value shouldBe (initialQuantity - exerciseQuantity)
     }
 
-    /*
     "keep its state" in {
       val contractId = new ContractId("abcdef01")
+      val contract = testKit.spawn(OTCOption(contractId))
+      val probe = testKit.createTestProbe[OTCOption.StateMsg]
 
       val initialQuantity = 10000
-      val exerciseQuantity = 2500
+      val exerciseQuantity = 4000
 
-      val contract = testKit.spawn(
-        OTCOption(
-          contractId,
-          new Instrument("TOYOTA"),
-          new Quantity(initialQuantity),
-          Put,
-          Sell
-        )
+      contract ! OTCOption.EnterContract(
+        new Instrument("TOYOTA"),
+        new Quantity(initialQuantity),
+        Put,
+        Sell
       )
+
       contract ! OTCOption.PartialExercise(new Quantity(exerciseQuantity))
 
-      val probe = testKit.createTestProbe[OTCOption.StateMsg]
       contract ! OTCOption.GetState(probe.ref)
       val result = probe.expectMessageType[OTCOption.StateMsg]
       result.effectiveQuantity.value shouldBe (initialQuantity - exerciseQuantity)
 
       testKit.stop(contract)
 
-      // no... I don't like modelling this without an explicit "Contract Entered" event
-      //val restartedContract = testKit
+      val restartedContract = testKit.spawn(OTCOption(contractId))
+      restartedContract ! OTCOption.GetState(probe.ref)
+      val result2 = probe.expectMessageType[OTCOption.StateMsg]
+      result2.effectiveQuantity.value shouldBe (initialQuantity - exerciseQuantity)
     }
-     */
 
   }
 }
