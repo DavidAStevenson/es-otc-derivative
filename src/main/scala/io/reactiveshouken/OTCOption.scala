@@ -47,42 +47,41 @@ object OTCOption {
   case object Buy extends BuySell
   case object Sell extends BuySell
 
-  case class OptionState(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
-  final case class State()
+  case class OTCOptionState(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
+  final case class State(otcOption: Option[OTCOptionState]) {
+    def enterContract(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell): State =
+      copy(otcOption = Some(OTCOptionState(inst, qty, putCall, buySell)))
+  }
   object State {
-    val empty = State()
+    val empty = State(None)
   }
 
   def handleCommand(contractId: ContractId, state: State, command: Command): Effect[Event, State] =
     command match {
       case EnterContract(inst, qty, putCall, buySell) =>
+        // TODO - don't require it, ignore invalid quantity commands
+        require(qty.value > 0, "quantity must be greater than 0")
         Effect.persist(ContractEntered(contractId, inst, qty, putCall, buySell))
     }
 
-  def handleEvent(state: State, event: Event): State = ???
+  def handleEvent(state: State, event: Event): State =
+    event match {
+      case ContractEntered(_, inst, qty, putCall, buySell) =>
+        state.enterContract(inst, qty, putCall, buySell)
+    }
 
   def apply(contractId: ContractId): Behavior[Command] = {
     require(contractId.value.nonEmpty, "contractId is required.")
     EventSourcedBehavior[Command, Event, State](
       PersistenceId("OTCOption", contractId.value),
       State.empty,
-      (state, command) => handleCommand(contractId, state, command), //  inactive()
+      (state, command) => handleCommand(contractId, state, command),
       (state, event) => handleEvent(state, event)
     )
 
   }
 
-  private def inactive(): Behavior[Command] =
-    Behaviors.receiveMessage {
-      case terms: EnterContract =>
-        // TODO - don't require it, ignore invalid quantity commands
-        require(terms.qty.value > 0, "quantity must be greater than 0")
-        effective(OptionState(terms.inst, terms.qty, terms.putCall, terms.buySell))
-      case _ =>
-        Behaviors.same
-    }
-
-  private def effective(terms: OptionState): Behavior[Command] =
+  private def effective(terms: OTCOptionState): Behavior[Command] =
     Behaviors.receiveMessage {
       case PartialExercise(exerciseQty) =>
         // TODO - can the option be exercised? Assuming yes, for now
