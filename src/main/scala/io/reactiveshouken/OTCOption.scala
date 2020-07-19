@@ -11,8 +11,12 @@ object OTCOption {
 
   /* Protocol */
   sealed trait Command
-  final case class EnterContract(inst: Instrument, qty: Quantity, putCall: PutCall, buySell: BuySell)
-      extends Command
+  final case class EnterContract(
+      inst: Instrument,
+      qty: Quantity,
+      putCall: PutCall,
+      buySell: BuySell
+  ) extends Command
   case class PartialExercise(q: Quantity) extends Command
   case class GetState(replyTo: ActorRef[StateMsg]) extends Command
 
@@ -21,12 +25,19 @@ object OTCOption {
 
   /* Events */
   sealed trait Event
+  final case class ContractEntered(
+      contractId: ContractId,
+      instrument: Instrument,
+      quantity: Quantity,
+      putCall: PutCall,
+      buySell: BuySell
+  ) extends Event
+
+  /* State */
 
   class ContractId(val value: String)
   class Instrument(val value: String)
   class Quantity(val value: Int)
-
-  /* State */
 
   sealed abstract class PutCall
   case object Put extends PutCall
@@ -42,17 +53,18 @@ object OTCOption {
     val empty = State()
   }
 
-  def handleCommand(state: State, command: Command): Effect[Event, State] = ???
+  def handleCommand(contractId: ContractId, state: State, command: Command): Effect[Event, State] =
+    command match {
+      case EnterContract(inst, qty, putCall, buySell) =>
+        Effect.persist(ContractEntered(contractId, inst, qty, putCall, buySell))
+    }
 
   def apply(contractId: ContractId): Behavior[Command] = {
     require(contractId.value.nonEmpty, "contractId is required.")
     EventSourcedBehavior[Command, Event, State](
       PersistenceId("OTCOption", contractId.value),
       State.empty,
-      (state, command) => {
-        inactive()
-        Effect.none
-      },
+      (state, command) => handleCommand(contractId, state, command), //  inactive()
       (state, event) => state
     )
 
