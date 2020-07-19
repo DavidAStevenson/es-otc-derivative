@@ -54,9 +54,7 @@ class OTCOption(aContractId: ContractId) {
     Behaviors.receiveMessage {
       case PartialExercise(exerciseQty) =>
         // TODO - can the option be exercised? Assuming yes, for now
-        //quantity = new Quantity(quantity.value - exerciseQty.value)
         effective(terms.copy(qty = new Quantity(terms.qty.value - exerciseQty.value)))
-        Behaviors.same
       case GetState(replyTo: ActorRef[StateMsg]) =>
         replyTo ! StateMsg(terms.qty)
         Behaviors.same
